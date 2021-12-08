@@ -1,0 +1,11 @@
+{
+  "name": "sanitizer",
+  "version": "1.0.0",
+  "description": "Asset sanitizer for SLRR",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "author": "elmaspablin",
+  "license": "MIT"
+}
