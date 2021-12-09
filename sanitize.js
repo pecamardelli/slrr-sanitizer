@@ -1,6 +1,8 @@
 const { exec } = require("child_process");
 const fs = require("fs");
+const { exit } = require("process");
 const check = require("./lib/checker");
+const loadCfgFiles = require("./lib/loadCfgFiles");
 const logger = require("./lib/logger");
 
 const assetKeys = ["native car", "native part", "sourcefile", "shape"];
@@ -12,6 +14,8 @@ const externalLinksContent = [
   "sound\\",
   "particles\\",
 ];
+
+console.log(process.platform);
 
 const rootDir = "./";
 const fileList = [];
@@ -27,13 +31,16 @@ const modFile = fileList.find((file) => file.extension === "rpk");
 
 if (!modFile) throw new Error("No rpk file found.");
 
-exec(`resdecode.exe ${modFile.name}`, (error) => {
-  if (error) throw new Error(`error decoding rkp: ${error.message}`);
-});
+process.platform === "win32" &&
+  exec(`resdecode.exe ${modFile.name}`, (error) => {
+    if (error) throw new Error(`error decoding rkp: ${error.message}`);
+  });
+
+const cfgFiles = loadCfgFiles(modFile.name);
 
 let rdbData;
 rdbData = fs.readFileSync(`${modFile.name}.rdb`, "utf8");
-
+console.log(rdbData);
 let tempFile = {};
 const rdbFiles = [];
 
@@ -77,7 +84,11 @@ rdbFiles.forEach((file) => {
     fileKeys.some((key) => {
       if (assetKeys.includes(key)) {
         if (!fs.existsSync(file[key].replace("cars\\racers\\", "")))
-          logger(`file not found ${file[key]} (${file.text})`);
+          logger(
+            `file not found ${file[key].replace("cars\\racers\\", "")} (${
+              file.text
+            })`
+          );
       }
     });
 
