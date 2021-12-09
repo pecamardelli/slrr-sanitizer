@@ -1,21 +1,10 @@
 const { exec } = require("child_process");
 const fs = require("fs");
-const { exit } = require("process");
+const { files } = require("node-dir");
 const check = require("./lib/checker");
 const loadCfgFiles = require("./lib/loadCfgFiles");
 const logger = require("./lib/logger");
-
-const assetKeys = ["native car", "native part", "sourcefile", "shape"];
-const externalLinksContent = [
-  "system\\",
-  "cars\\",
-  "cars\\racers\\",
-  "parts\\",
-  "sound\\",
-  "particles\\",
-];
-
-console.log(process.platform);
+const { assetKeys, externalLinksContent, skipList } = require("./config");
 
 const rootDir = "./";
 const fileList = [];
@@ -28,19 +17,27 @@ fs.readdirSync(rootDir).forEach((fileName) => {
 check(fileList);
 
 const modFile = fileList.find((file) => file.extension === "rpk");
-
 if (!modFile) throw new Error("No rpk file found.");
 
-process.platform === "win32" &&
+if (process.platform === "win32") {
   exec(`resdecode.exe ${modFile.name}`, (error) => {
     if (error) throw new Error(`error decoding rkp: ${error.message}`);
   });
+}
 
-const cfgFiles = loadCfgFiles(modFile.name);
+const modFiles = files(modFile.name, "file", null, { sync: true }).filter(
+  (f) => {
+    const fileExtension = f.split(".")[1];
+    return !skipList.includes(fileExtension.toLowerCase());
+  }
+);
+const modFilesOnRpk = [];
+const cfgFiles = loadCfgFiles(modFiles);
 
 let rdbData;
 rdbData = fs.readFileSync(`${modFile.name}.rdb`, "utf8");
-console.log(rdbData);
+if (!rdbData) throw new Error(`No rdb file found.`);
+
 let tempFile = {};
 const rdbFiles = [];
 
@@ -83,12 +80,17 @@ rdbFiles.forEach((file) => {
   } else {
     fileKeys.some((key) => {
       if (assetKeys.includes(key)) {
-        if (!fs.existsSync(file[key].replace("cars\\racers\\", "")))
-          logger(
-            `file not found ${file[key].replace("cars\\racers\\", "")} (${
-              file.text
-            })`
-          );
+        const parsedFileName =
+          process.platform === "win32"
+            ? file[key].replace("cars\\racers\\", "")
+            : file[key].replace("cars\\racers\\", "").replace(/\\/g, "/");
+        const found = modFiles.find(
+          (fileName) => fileName.toLowerCase() === parsedFileName.toLowerCase()
+        );
+
+        if (found) {
+          modFilesOnRpk.push(found);
+        } else logger(`file not found ${parsedFileName} (${file.text})`);
       }
     });
 
@@ -96,4 +98,11 @@ rdbFiles.forEach((file) => {
     }
   }
 });
+
+const orphanFiles = modFiles.filter((f) => !modFilesOnRpk.includes(f));
+
+console.log(
+  `Total files: ${modFiles.length}, on rpk: ${modFilesOnRpk.length}`,
+  orphanFiles
+);
 // console.log(rdbFiles);
