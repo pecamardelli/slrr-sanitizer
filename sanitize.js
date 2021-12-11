@@ -5,6 +5,7 @@ const check = require("./lib/checker");
 const loadCfgFiles = require("./lib/loadCfgFiles");
 const logger = require("./lib/logger");
 const { assetKeys, externalLinksContent, skipList } = require("./config");
+const { exit } = require("process");
 
 const rootDir = "./";
 const fileList = [];
@@ -33,6 +34,8 @@ const modFiles = files(modFile.name, "file", null, { sync: true }).filter(
 );
 const modFilesOnRpk = [];
 const cfgFiles = loadCfgFiles(modFiles);
+console.log(cfgFiles);
+exit();
 
 let rdbData;
 rdbData = fs.readFileSync(`${modFile.name}.rdb`, "utf8");

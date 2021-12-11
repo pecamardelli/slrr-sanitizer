@@ -12,6 +12,7 @@ const config = {
     "stockpart",
     "slot",
     "attach",
+    "category",
   ],
   skipList: ["java", "tex", "class"],
   externalLinksContent: [
