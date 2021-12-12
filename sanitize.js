@@ -5,6 +5,7 @@ const check = require("./lib/checker");
 const loadCfgFiles = require("./lib/loadCfgFiles");
 const logger = require("./lib/logger");
 const { assetKeys, externalLinksContent, skipList } = require("./config");
+const readRdb = require("./lib/readRdb");
 const { exit } = require("process");
 
 const rootDir = "./";
@@ -32,45 +33,14 @@ const modFiles = files(modFile.name, "file", null, { sync: true }).filter(
     return !skipList.includes(fileExtension.toLowerCase());
   }
 );
+
 const modFilesOnRpk = [];
 const cfgFiles = loadCfgFiles(modFiles);
-console.log(cfgFiles);
-exit();
-
-let rdbData;
-rdbData = fs.readFileSync(`${modFile.name}.rdb`, "utf8");
-if (!rdbData) throw new Error(`No rdb file found.`);
-
-let tempFile = {};
-const rdbFiles = [];
-
-rdbData.split("\r\n").forEach((string) => {
-  if (string.startsWith("<FILE", 0)) {
-    tempFile = {};
-    const fileText = string.replace(/[<|>]/g, "").trim().split(" ")[1];
-    tempFile.text = fileText;
-  } else if (string.startsWith("</FILE>", 0)) {
-    rdbFiles.push(tempFile);
-  } else {
-    const lineData = string.trim().split(/\s/g);
-    if (lineData.length > 2) {
-      if (string.startsWith("native", 0))
-        tempFile[`${lineData[0]} ${lineData[1]}`] = lineData[2];
-      else {
-        const value = lineData.slice(1);
-        if (value.join().startsWith("cars\\racers")) {
-          tempFile[lineData[0]] = value.join();
-          logger(`file path has spaces: ${tempFile.text}`);
-        } else tempFile[lineData[0]] = value;
-      }
-    } else tempFile[lineData[0]] = lineData[1];
-  }
-});
+const rdbFiles = readRdb(modFile.name);
 
 rdbFiles.forEach((file) => {
-  if (file.superid) {
-    if (!rdbFiles.some((f) => f.typeid === file.superid))
-      logger(`superid not found (${file.superid}) for ${file.text}`);
+  if (file.superid && !rdbFiles.some((f) => f.typeid === file.superid)) {
+    logger(`superid not found (${file.superid}) for ${file.text}`);
   }
 
   const fileKeys = Object.keys(file);
@@ -81,7 +51,7 @@ rdbFiles.forEach((file) => {
         logger(`${content} is missing from external_links file`);
     });
   } else {
-    fileKeys.some((key) => {
+    fileKeys.forEach((key) => {
       if (assetKeys.includes(key)) {
         const parsedFileName =
           process.platform === "win32"
@@ -91,9 +61,8 @@ rdbFiles.forEach((file) => {
           (fileName) => fileName.toLowerCase() === parsedFileName.toLowerCase()
         );
 
-        if (found) {
-          modFilesOnRpk.push(found);
-        } else logger(`file not found ${parsedFileName} (${file.text})`);
+        if (found) modFilesOnRpk.push(found);
+        else logger(`file not found ${parsedFileName} (${file.text})`);
       }
     });
 
@@ -103,9 +72,8 @@ rdbFiles.forEach((file) => {
 });
 
 const orphanFiles = modFiles.filter((f) => !modFilesOnRpk.includes(f));
-
-console.log(
-  `Total files: ${modFiles.length}, on rpk: ${modFilesOnRpk.length}`,
-  orphanFiles
-);
+// console.log(
+//   `Total files: ${modFiles.length}, on rpk: ${modFilesOnRpk.length}`,
+//   orphanFiles
+// );
 // console.log(rdbFiles);
